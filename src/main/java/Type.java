@@ -1,11 +1,11 @@
 public class Type {
     private TypeDetails type;
 
-    public TypeDetails getType() {
+    public TypeDetails getTypeDetails() {
         return type;
     }
 
-    public void setType(TypeDetails type) {
+    public void setTypeDetails(TypeDetails type) {
         this.type = type;
     }
 }

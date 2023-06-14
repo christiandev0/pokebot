@@ -50,7 +50,44 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                 } catch (TelegramApiException e) {
                     e.printStackTrace();
                 }
-            } else {
+            }
+            if (messageText.equals("/help")) {
+                BotCommandHandler commandHandler = new BotCommandHandler();
+                String response = commandHandler.executeHelpCommand();
+                SendMessage sendMessage = new SendMessage();
+                sendMessage.setText(response);
+                sendMessage.setChatId(update.getMessage().getChatId().toString());
+
+                try {
+                    execute(sendMessage);
+                } catch (TelegramApiException e) {
+                    e.printStackTrace();
+                }
+            } else if (messageText.equals("/info")) {
+                BotCommandHandler commandHandler = new BotCommandHandler();
+                String response = commandHandler.executeInfoCommand();
+                SendMessage sendMessage = new SendMessage();
+                sendMessage.setText(response);
+                sendMessage.setChatId(update.getMessage().getChatId().toString());
+
+                try {
+                    execute(sendMessage);
+                } catch (TelegramApiException e) {
+                    e.printStackTrace();
+                }
+            } else if (messageText.startsWith("/cerca ")) {
+                BotCommandHandler commandHandler = new BotCommandHandler();
+                String response = commandHandler.executeCommand(messageText);
+                SendMessage sendMessage = new SendMessage();
+                sendMessage.setText(response);
+                sendMessage.setChatId(update.getMessage().getChatId().toString());
+
+                try {
+                    execute(sendMessage);
+                } catch (TelegramApiException e) {
+                    e.printStackTrace();
+                }}
+            else {
                 BotCommandHandler commandHandler = new BotCommandHandler();
                 String response = commandHandler.executeCommand(messageText);
                 SendMessage sendMessage = new SendMessage();
@@ -90,14 +127,20 @@ public class pokemonjavabot extends TelegramLongPollingBot {
     public class StartCommand implements BotCommand {
         @Override
         public String executeCommand() {
-            return "Benvenuto!\nInserisci il nome del pokemon per scoprirne le caratteristiche!";
+            return "Inserisci il nome del pokemon per scoprirne le caratteristiche!";
         }
     }
 
     public class SearchCommand implements BotCommand {
+        private String pokemonName;
+
+        public SearchCommand(String pokemonName) {
+            this.pokemonName = pokemonName;
+        }
+
         @Override
         public String executeCommand() {
-            String response = getPokemonInfo(currentUpdate.getMessage().getText().toLowerCase());
+            String response = getPokemonInfo(pokemonName.toLowerCase());
             return response;
         }
     }
@@ -107,12 +150,34 @@ public class pokemonjavabot extends TelegramLongPollingBot {
             BotCommand botCommand;
             if (command.equals("/start")) {
                 botCommand = new StartCommand();
+            } else if (command.startsWith("/cerca ")) {
+                botCommand = new SearchCommand(command.substring(7));
             } else {
-                botCommand = new SearchCommand();
+                // Nessun comando corrispondente trovato, restituisci un messaggio di errore o una stringa vuota
+                return "Comando non valido.";
             }
-
             return botCommand.executeCommand();
         }
+
+
+        public String executeHelpCommand() {
+            StringBuilder sb = new StringBuilder();
+            sb.append("Ecco alcuni comandi disponibili:\n");
+            sb.append("/start - Avvia il bot\n");
+            sb.append("/help - Mostra l'elenco dei comandi disponibili\n");
+            sb.append("/info - Mostra informazioni sul bot\n");
+            sb.append("/cerca <nome_pokemon> - Cerca informazioni su un Pokémon\n");
+
+            return sb.toString();}
+        public String executeInfoCommand() {
+            StringBuilder sb = new StringBuilder();
+            sb.append("Questo è un bot per ottenere informazioni sui Pokémon.\n");
+            sb.append("È possibile utilizzare il comando /cerca seguito dal nome di un Pokémon per cercare informazioni su di esso.\n");
+            sb.append("Spero che ti sia utile! Buon divertimento!");
+
+            return sb.toString();
+        }
+
     }
 
     private String getPokemonInfo(String pokemonName) {

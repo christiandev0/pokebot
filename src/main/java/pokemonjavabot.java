@@ -37,6 +37,9 @@ public class pokemonjavabot extends TelegramLongPollingBot {
 
         if (update.hasMessage() && update.getMessage().hasText()) {
             String messageText = update.getMessage().getText();
+            Long chatId = update.getMessage().getChatId();
+            System.out.println(update.getMessage().getText());
+            System.out.println(update.getMessage().getFrom().getFirstName());
             if (messageText.equals("/start")) {
                 SendMessage sendMessage = new SendMessage();
                 sendMessage.setText("Benvenuto!");
@@ -89,8 +92,8 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                 if (pokemon != null) {
                     StringBuilder sb = new StringBuilder();
                     sb.append("Name: ").append(pokemon.getName()).append("\n");
-                    sb.append("Height: ").append(pokemon.getHeight()).append("\n");
-                    sb.append("Weight: ").append(pokemon.getWeight()).append("\n");
+                    sb.append("Height: ").append(convertDecimetersToCentimeters(pokemon.getHeight())).append(" cm").append("\n");
+                    sb.append("Weight: ").append(convertHectogramsToKilograms(pokemon.getWeight())).append(" kg").append("\n");
 
                     List<Type> types = pokemon.getTypes();
                     StringBuilder typesStringBuilder = new StringBuilder();
@@ -106,17 +109,24 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                         if (gifUrl != null) {
                             sendPokemonInfo(sb.toString(), gifUrl);
                         } else {
-                            return "No information found for the given Pokémon.";
+                            return "Non ci sono informazioni per questo pokemon";
                         }
                     }
                 }
             }
         } catch (Exception e) {
             e.printStackTrace();
-            return "An error occurred while processing the request.";
+            return "Errore durante il caricamento della richiesta riprova";
         }
 
         return "Continua a cercare!";
+    }
+    private int convertDecimetersToCentimeters(int decimeters) {
+        return decimeters * 10;
+    }
+
+    private double convertHectogramsToKilograms(int hectograms) {
+        return hectograms / 10.0;
     }
 
 

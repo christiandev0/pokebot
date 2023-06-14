@@ -90,7 +90,7 @@ public class pokemonjavabot extends TelegramLongPollingBot {
     public class StartCommand implements BotCommand {
         @Override
         public String executeCommand() {
-            return "Benvenuto!";
+            return "Benvenuto!\nInserisci il nome del pokemon per scoprirne le caratteristiche!";
         }
     }
 
@@ -145,18 +145,26 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                             return "Non ci sono informazioni per questo pokemon";
                         }
                     }
+                } else {
+                    // Il Pokémon non è stato trovato
+                    return "Il Pokémon \"" + pokemonName + "\" non esiste o non sono presenti informazioni a riguardo.";
                 }
+            } else {
+                // La risposta del server non è stata di successo
+                return "Il Pokémon \"" + pokemonName + "\" non esiste o non sono presenti informazioni a riguardo.";
             }
         } catch (Exception e) {
             e.printStackTrace();
             return "Errore durante il caricamento della richiesta. Riprova.";
         }
 
-        if (pokemonName == null) {
-            return "Pokemon non trovato. Riprova.";
+        // Se il nome del Pokémon è nullo o vuoto, restituisci un messaggio di errore
+        if (pokemonName == null || pokemonName.isEmpty()) {
+            return "Nome del Pokémon non valido. Riprova.";
         }
 
-        return "Continua a cercare!";
+        // Se si arriva a questo punto, la richiesta è stata completata con successo
+        return "Se desideri continuare inserisci un altro Pokemon!";
     }
 
     private int convertDecimetersToCentimeters(int decimeters) {

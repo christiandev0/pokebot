@@ -10,17 +10,16 @@ import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 import retrofit2.http.GET;
 import retrofit2.http.Path;
-
 import java.util.List;
 
 public class pokemonjavabot extends TelegramLongPollingBot {
-    private static final String BOT_TOKEN = "YOUR_BOT_TOKEN";
-    private static final String BOT_USERNAME = "YOUR_BOT_USERNAME";
+    private static final String BOT_TOKEN = "6000796411:AAGcYeN3oA9iBK1RzsPF293IpREllr_G_L8";
+    private static final String BOT_USERNAME = "https://t.me/pokemonjavabot";
 
     private static final String POKEAPI_BASE_URL = "https://pokeapi.co/api/v2/";
     private Retrofit retrofit;
     private PokeApiService pokeApiService;
-    private Update currentUpdate; // Aggiunta variabile per memorizzare l'update corrente
+    private Update currentUpdate;
 
     public pokemonjavabot() {
         retrofit = new Retrofit.Builder()
@@ -33,13 +32,14 @@ public class pokemonjavabot extends TelegramLongPollingBot {
 
     @Override
     public void onUpdateReceived(Update update) {
-        currentUpdate = update; // Memorizza l'update corrente
+        currentUpdate = update;
 
         if (update.hasMessage() && update.getMessage().hasText()) {
             String messageText = update.getMessage().getText();
             Long chatId = update.getMessage().getChatId();
             System.out.println(update.getMessage().getText());
             System.out.println(update.getMessage().getFrom().getFirstName());
+
             if (messageText.equals("/start")) {
                 SendMessage sendMessage = new SendMessage();
                 sendMessage.setText("Benvenuto!");
@@ -51,7 +51,8 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                     e.printStackTrace();
                 }
             } else {
-                String response = getPokemonInfo(messageText);
+                BotCommandHandler commandHandler = new BotCommandHandler();
+                String response = commandHandler.executeCommand(messageText);
                 SendMessage sendMessage = new SendMessage();
                 sendMessage.setText(response);
                 sendMessage.setChatId(update.getMessage().getChatId().toString());
@@ -82,6 +83,38 @@ public class pokemonjavabot extends TelegramLongPollingBot {
         }
     }
 
+    public interface BotCommand {
+        String executeCommand();
+    }
+
+    public class StartCommand implements BotCommand {
+        @Override
+        public String executeCommand() {
+            return "Benvenuto!";
+        }
+    }
+
+    public class SearchCommand implements BotCommand {
+        @Override
+        public String executeCommand() {
+            String response = getPokemonInfo(currentUpdate.getMessage().getText());
+            return response;
+        }
+    }
+
+    public class BotCommandHandler {
+        public String executeCommand(String command) {
+            BotCommand botCommand;
+            if (command.equals("/start")) {
+                botCommand = new StartCommand();
+            } else {
+                botCommand = new SearchCommand();
+            }
+
+            return botCommand.executeCommand();
+        }
+    }
+
     private String getPokemonInfo(String pokemonName) {
         try {
             Call<Pokemon> call = pokeApiService.getPokemon(pokemonName);
@@ -91,9 +124,9 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                 Pokemon pokemon = response.body();
                 if (pokemon != null) {
                     StringBuilder sb = new StringBuilder();
-                    sb.append("Name: ").append(pokemon.getName()).append("\n");
-                    sb.append("Height: ").append(convertDecimetersToCentimeters(pokemon.getHeight())).append(" cm").append("\n");
-                    sb.append("Weight: ").append(convertHectogramsToKilograms(pokemon.getWeight())).append(" kg").append("\n");
+                    sb.append("Nome: ").append(pokemon.getName()).append("\n");
+                    sb.append("Altezza: ").append(convertDecimetersToCentimeters(pokemon.getHeight())).append(" cm").append("\n");
+                    sb.append("Peso: ").append(convertHectogramsToKilograms(pokemon.getWeight())).append(" kg").append("\n");
 
                     List<Type> types = pokemon.getTypes();
                     StringBuilder typesStringBuilder = new StringBuilder();
@@ -101,8 +134,8 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                         typesStringBuilder.append(type.getTypeDetails().getName()).append(", ");
                     }
                     String pokemonTypes = typesStringBuilder.toString().trim();
-                    pokemonTypes = pokemonTypes.substring(0, pokemonTypes.length() - 1); // Remove the trailing comma
-                    sb.append("Type: ").append(pokemonTypes).append("\n");
+                    pokemonTypes = pokemonTypes.substring(0, pokemonTypes.length() - 1);
+                    sb.append("Tipo: ").append(pokemonTypes).append("\n");
 
                     if (pokemon.getSprites() != null) {
                         String gifUrl = pokemon.getSprites().getFrontDefault();
@@ -116,11 +149,16 @@ public class pokemonjavabot extends TelegramLongPollingBot {
             }
         } catch (Exception e) {
             e.printStackTrace();
-            return "Errore durante il caricamento della richiesta riprova";
+            return "Errore durante il caricamento della richiesta. Riprova.";
+        }
+
+        if (pokemonName == null) {
+            return "Pokemon non trovato. Riprova.";
         }
 
         return "Continua a cercare!";
     }
+
     private int convertDecimetersToCentimeters(int decimeters) {
         return decimeters * 10;
     }
@@ -129,15 +167,14 @@ public class pokemonjavabot extends TelegramLongPollingBot {
         return hectograms / 10.0;
     }
 
-
     @Override
     public String getBotUsername() {
-        return "pokemonjavabot";
+        return BOT_USERNAME;
     }
 
     @Override
     public String getBotToken() {
-        return "6000796411:AAGcYeN3oA9iBK1RzsPF293IpREllr_G_L8";
+        return BOT_TOKEN;
     }
 
     public interface PokeApiService {

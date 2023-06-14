@@ -1,8 +1,10 @@
+import java.util.List;
+
 public class Pokemon {
     private String name;
     private int height;
     private int weight;
-    private String type;
+    private List<Type> types;
 
     public String getName() {
         return name;
@@ -28,11 +30,12 @@ public class Pokemon {
         this.weight = weight;
     }
 
-    public String getType() {
-        return type;
+    public List<Type> getTypes() {
+        return types;
     }
 
-    public void setType(String type) {
-        this.type = type;
+    public void setTypes(List<Type> types) {
+        this.types = types;
     }
 }
+

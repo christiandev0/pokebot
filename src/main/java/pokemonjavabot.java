@@ -97,7 +97,7 @@ public class pokemonjavabot extends TelegramLongPollingBot {
     public class SearchCommand implements BotCommand {
         @Override
         public String executeCommand() {
-            String response = getPokemonInfo(currentUpdate.getMessage().getText());
+            String response = getPokemonInfo(currentUpdate.getMessage().getText().toLowerCase());
             return response;
         }
     }

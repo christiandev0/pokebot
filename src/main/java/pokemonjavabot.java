@@ -12,9 +12,10 @@ import retrofit2.http.GET;
 import retrofit2.http.Path;
 import java.util.List;
 
+
 public class pokemonjavabot extends TelegramLongPollingBot {
     private static final String BOT_TOKEN = "6000796411:AAGcYeN3oA9iBK1RzsPF293IpREllr_G_L8";
-    private static final String BOT_USERNAME = "https://t.me/pokemonjavabot";
+    private static final String BOT_USERNAME = "pokemonjavabot";
 
     private static final String POKEAPI_BASE_URL = "https://pokeapi.co/api/v2/";
     private Retrofit retrofit;
@@ -152,6 +153,8 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                 botCommand = new StartCommand();
             } else if (command.startsWith("/cerca ")) {
                 botCommand = new SearchCommand(command.substring(7));
+            } else if (command.equals("/cerca")) {
+                return "Per la ricerca scrivi /cerca <nome_pokémon>";
             } else {
                 // Nessun comando corrispondente trovato, restituisci un messaggio di errore o una stringa vuota
                 return "Comando non valido.";
@@ -166,7 +169,7 @@ public class pokemonjavabot extends TelegramLongPollingBot {
             sb.append("/start - Avvia il bot\n");
             sb.append("/help - Mostra l'elenco dei comandi disponibili\n");
             sb.append("/info - Mostra informazioni sul bot\n");
-            sb.append("/cerca <nome_pokemon> - Cerca informazioni su un Pokémon\n");
+            sb.append("/cerca <nome_pokémon> - Cerca informazioni su un Pokémon\n");
 
             return sb.toString();}
         public String executeInfoCommand() {
@@ -189,7 +192,8 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                 Pokemon pokemon = response.body();
                 if (pokemon != null) {
                     StringBuilder sb = new StringBuilder();
-                    sb.append("Nome: ").append(pokemon.getName()).append("\n");
+                    String capitalizedPokemonName = capitalizeFirstLetter(pokemon.getName());
+                    sb.append("Nome: ").append(capitalizedPokemonName).append("\n");
                     sb.append("Altezza: ").append(convertDecimetersToCentimeters(pokemon.getHeight())).append(" cm").append("\n");
                     sb.append("Peso: ").append(convertHectogramsToKilograms(pokemon.getWeight())).append(" kg").append("\n");
 
@@ -207,7 +211,7 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                         if (gifUrl != null) {
                             sendPokemonInfo(sb.toString(), gifUrl);
                         } else {
-                            return "Non ci sono informazioni per questo pokemon";
+                            return "Non ci sono informazioni per questo pokémon";
                         }
                     }
                 } else {
@@ -232,6 +236,12 @@ public class pokemonjavabot extends TelegramLongPollingBot {
         return "Se desideri continuare inserisci un altro Pokemon!";
     }
 
+    private String capitalizeFirstLetter(String input) {
+        if (input == null || input.isEmpty()) {
+            return input;
+        }
+        return input.substring(0, 1).toUpperCase() + input.substring(1);
+    }
     private int convertDecimetersToCentimeters(int decimeters) {
         return decimeters * 10;
     }

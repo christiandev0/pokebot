@@ -1,6 +1,7 @@
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendAnimation;
+import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
@@ -11,6 +12,13 @@ import retrofit2.converter.gson.GsonConverterFactory;
 import retrofit2.http.GET;
 import retrofit2.http.Path;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.Random;
+
+
+
 
 
 public class pokemonjavabot extends TelegramLongPollingBot {
@@ -21,6 +29,14 @@ public class pokemonjavabot extends TelegramLongPollingBot {
     private Retrofit retrofit;
     private PokeApiService pokeApiService;
     private Update currentUpdate;
+    public interface PokeApiService {
+        @GET("pokemon/{pokemonName}")
+        Call<Pokemon> getPokemon(@Path("pokemonName") String pokemonName);
+
+        @GET("pokemon")
+        Call<PokemonList> getPokemonList();
+    }
+
 
     public pokemonjavabot() {
         retrofit = new Retrofit.Builder()
@@ -100,6 +116,7 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                 } catch (TelegramApiException e) {
                     e.printStackTrace();
                 }
+                sendSpawnMessage();
             }
         }
     }
@@ -259,12 +276,6 @@ public class pokemonjavabot extends TelegramLongPollingBot {
     public String getBotToken() {
         return BOT_TOKEN;
     }
-
-    public interface PokeApiService {
-        @GET("pokemon/{pokemonName}")
-        Call<Pokemon> getPokemon(@Path("pokemonName") String pokemonName);
-    }
-
     public static void main(String[] args) {
         pokemonjavabot bot = new pokemonjavabot();
         bot.start();
@@ -272,5 +283,71 @@ public class pokemonjavabot extends TelegramLongPollingBot {
 
     private void start() {
         System.out.println("Benvenuto!");
+        ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
+        executorService.scheduleAtFixedRate(this::sendSpawnMessage, 0, 5, TimeUnit.SECONDS);
+    }
+
+    private void sendSpawnMessage() {
+        String randomPokemon = spawnRandomPokemon();
+        String messageText = "È apparso un " + randomPokemon + "!";
+
+        // Ottieni l'URL dell'immagine del Pokémon
+        String imageUrl = getPokemonImageUrl(randomPokemon);
+
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setText("Vuoi provare a catturarlo?!");
+        sendMessage.setChatId(currentUpdate.getMessage().getChatId().toString());
+
+        SendPhoto sendPhoto = new SendPhoto();
+        sendPhoto.setPhoto(new InputFile(imageUrl));
+        sendPhoto.setChatId(currentUpdate.getMessage().getChatId().toString());
+
+        try {
+
+            execute(sendPhoto);
+            execute(sendMessage);
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
+    }
+    private String getPokemonImageUrl(String pokemonName) {
+        try {
+            Call<Pokemon> call = pokeApiService.getPokemon(pokemonName);
+            Response<Pokemon> response = call.execute();
+
+            if (response.isSuccessful()) {
+                Pokemon pokemon = response.body();
+                if (pokemon != null && pokemon.getSprites() != null) {
+                    return pokemon.getSprites().getFrontDefault();
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return ""; // Restituisce una stringa vuota se l'URL dell'immagine non è disponibile
+    }
+
+
+    private String spawnRandomPokemon() {
+        try {
+            Call<PokemonList> call = pokeApiService.getPokemonList();
+            Response<PokemonList> response = call.execute();
+
+            if (response.isSuccessful()) {
+                PokemonList pokemonList = response.body();
+                if (pokemonList != null && pokemonList.getResults() != null) {
+                    List<Result> results = pokemonList.getResults();
+                    Random random = new Random();
+                    int randomIndex = random.nextInt(results.size());
+                    Result randomResult = results.get(randomIndex);
+                    return randomResult.getName();
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return "Vuoi provare a catturarlo?!";
     }
 }

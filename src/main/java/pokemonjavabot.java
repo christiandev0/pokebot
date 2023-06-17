@@ -289,12 +289,15 @@ public class pokemonjavabot extends TelegramLongPollingBot {
 
     private void sendSpawnMessage() {
         String randomPokemon = spawnRandomPokemon();
-        String messageText = "È apparso un " + randomPokemon + "!";
+        SendMessage sendMessage = new SendMessage();
+        Pokemon capturedPokemon = new Pokemon();
+        capturedPokemon.setName(randomPokemon);
 
         // Ottieni l'URL dell'immagine del Pokémon
         String imageUrl = getPokemonImageUrl(randomPokemon);
+        String nomepokemon = capturedPokemon.getName();
+        sendMessage.setText("È apparso un " + nomepokemon + "!");
 
-        SendMessage sendMessage = new SendMessage();
         sendMessage.setText("Vuoi provare a catturarlo?!");
         sendMessage.setChatId(currentUpdate.getMessage().getChatId().toString());
 
@@ -303,7 +306,6 @@ public class pokemonjavabot extends TelegramLongPollingBot {
         sendPhoto.setChatId(currentUpdate.getMessage().getChatId().toString());
 
         try {
-
             execute(sendPhoto);
             execute(sendMessage);
         } catch (TelegramApiException e) {
@@ -347,7 +349,6 @@ public class pokemonjavabot extends TelegramLongPollingBot {
         } catch (Exception e) {
             e.printStackTrace();
         }
-
-        return "Vuoi provare a catturarlo?!";
+    return "Vuoi provare a catturarlo?";
     }
 }

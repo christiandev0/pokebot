@@ -97,8 +97,4 @@ public class Pokemon {
             this.frontDefault = frontDefault;
         }
     }
-    public Pokemon() {
-        // Costruttore senza argomenti
-    }
-
 }

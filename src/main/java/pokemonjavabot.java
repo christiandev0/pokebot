@@ -10,7 +10,10 @@ import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 import retrofit2.http.GET;
 import retrofit2.http.Path;
+
+import java.io.IOException;
 import java.util.List;
+import java.util.Random;
 
 
 public class pokemonjavabot extends TelegramLongPollingBot {
@@ -21,6 +24,8 @@ public class pokemonjavabot extends TelegramLongPollingBot {
     private Retrofit retrofit;
     private PokeApiService pokeApiService;
     private Update currentUpdate;
+    private boolean isRunning = true; // Variabile flag per indicare se il thread deve essere eseguito
+
 
     public pokemonjavabot() {
         retrofit = new Retrofit.Builder()
@@ -34,7 +39,8 @@ public class pokemonjavabot extends TelegramLongPollingBot {
     @Override
     public void onUpdateReceived(Update update) {
         currentUpdate = update;
-
+        Thread requestThread = new Thread(() -> processRequest(update));
+        requestThread.start();
         if (update.hasMessage() && update.getMessage().hasText()) {
             String messageText = update.getMessage().getText();
             Long chatId = update.getMessage().getChatId();
@@ -87,8 +93,14 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                     execute(sendMessage);
                 } catch (TelegramApiException e) {
                     e.printStackTrace();
-                }}
-            else {
+                }} else if (messageText.startsWith("/stop")) {
+                BotCommandHandler commandHandler = new BotCommandHandler();
+                String response = commandHandler.executeCommand(messageText);
+                SendMessage sendMessage = new SendMessage();
+                sendMessage.setText(response);
+                sendMessage.setChatId(update.getMessage().getChatId().toString());
+
+            } else {
                 BotCommandHandler commandHandler = new BotCommandHandler();
                 String response = commandHandler.executeCommand(messageText);
                 SendMessage sendMessage = new SendMessage();
@@ -101,6 +113,46 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                     e.printStackTrace();
                 }
             }
+        }
+    }
+
+    private void processRequest(Update update) {
+        // Gestisci la richiesta qui
+        String pokemonInfo = "";
+        while (isRunning) {
+        try {
+            pokemonInfo = spawnRandomPokemon();
+        } catch (RuntimeException e) {
+            pokemonInfo = "Errore durante lo spawn del Pokémon casuale: " + e.getMessage();
+        }
+        try {
+            Thread.sleep(10000); // Sospende l'esecuzione del thread per 1 minuto
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt(); // Ripristina lo stato interrupt del thread
+            e.printStackTrace(); // Gestisci l'eccezione in base alle tue esigenze
+        }
+        SendMessage response = new SendMessage();
+                response.setChatId(update.getMessage().getChatId());
+                response.setText(pokemonInfo);
+
+        try {
+            execute(response); // Invia il messaggio di risposta
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
+        }
+    }
+
+    public void stopProcessing(Long chatId) {
+        isRunning = false;
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setText("Processo interrotto.");
+        sendMessage.setChatId(chatId.toString());
+
+        try {
+            execute(sendMessage);
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
         }
     }
 
@@ -128,7 +180,7 @@ public class pokemonjavabot extends TelegramLongPollingBot {
     public class StartCommand implements BotCommand {
         @Override
         public String executeCommand() {
-            return "Inserisci il nome del pokemon per scoprirne le caratteristiche!";
+            return "Fai attenzione potresti imbatterti in un pokémon selvatico!";
         }
     }
 
@@ -145,6 +197,21 @@ public class pokemonjavabot extends TelegramLongPollingBot {
             return response;
         }
     }
+    public class StopCommand implements BotCommand {
+        private Long chatId;
+
+        public Long getChatId(Update update) {
+            Long chatId = update.getMessage().getChatId();
+            return chatId;
+        }
+        @Override
+        public String executeCommand() {
+            stopProcessing(chatId);
+            System.out.println("mannagg tutt cos");
+            return "Hai interrotto la ricerca di Pokémon. Grazie per aver utilizzato il bot!";
+        }
+    }
+
 
     public class BotCommandHandler {
         public String executeCommand(String command) {
@@ -155,6 +222,8 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                 botCommand = new SearchCommand(command.substring(7));
             } else if (command.equals("/cerca")) {
                 return "Per la ricerca scrivi /cerca <nome_pokémon>";
+            } else if (command.equals("/stop")) {
+                botCommand = new StartCommand();
             } else {
                 // Nessun comando corrispondente trovato, restituisci un messaggio di errore o una stringa vuota
                 return "Comando non valido.";
@@ -170,6 +239,7 @@ public class pokemonjavabot extends TelegramLongPollingBot {
             sb.append("/help - Mostra l'elenco dei comandi disponibili\n");
             sb.append("/info - Mostra informazioni sul bot\n");
             sb.append("/cerca <nome_pokémon> - Cerca informazioni su un Pokémon\n");
+            sb.append("/stop Esci dall'erba alta per non incontrare altri pokemon!");
 
             return sb.toString();}
         public String executeInfoCommand() {
@@ -271,6 +341,27 @@ public class pokemonjavabot extends TelegramLongPollingBot {
     }
 
     private void start() {
-        System.out.println("Benvenuto!");
+        System.out.println("Benvenuto!\nComincia la tua avventura!");
+    }
+    private String spawnRandomPokemon() {
+        try {
+            Random random = new Random();
+            int pokemonId = random.nextInt(898) + 1; // Genera un ID casuale compreso tra 1 e 898
+
+            Call<Pokemon> call = pokeApiService.getPokemon(String.valueOf(pokemonId));
+            Response<Pokemon> response = call.execute();
+
+            if (response.isSuccessful()) {
+                Pokemon pokemon = response.body();
+                String pokemonName = pokemon.getName();
+                String imageUrl = pokemon.getSprites().getFrontDefault();
+
+                return "È apparso un Pokémon casuale: " + pokemonName + "\n" + imageUrl;
+            } else {
+                throw new RuntimeException("Errore nella richiesta API: " + response.code());
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Errore durante l'esecuzione della richiesta API", e);
+        }
     }
 }

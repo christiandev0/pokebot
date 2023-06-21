@@ -12,9 +12,7 @@ import retrofit2.http.GET;
 import retrofit2.http.Path;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 
 public class pokemonjavabot extends TelegramLongPollingBot {
@@ -25,7 +23,7 @@ public class pokemonjavabot extends TelegramLongPollingBot {
     private Retrofit retrofit;
     private PokeApiService pokeApiService;
     private Update currentUpdate;
-    private List<Pokemon> pokemonList = new ArrayList<>();
+    private Set<Pokemon> pokemonList;
 
     private boolean isRunning = true; // Variabile flag per indicare se il thread deve essere eseguito
 
@@ -37,6 +35,7 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                 .build();
 
         pokeApiService = retrofit.create(PokeApiService.class);
+        pokemonList = new HashSet<>();
     }
 
     @Override
@@ -239,15 +238,32 @@ public class pokemonjavabot extends TelegramLongPollingBot {
         }
     }
     public class PokedexCommand implements BotCommand {
+        private Set<Pokemon> pokemonSet;
+
+        public PokedexCommand(Set<Pokemon> pokemonSet) {
+            this.pokemonSet = pokemonSet;
+        }
         @Override
         public String executeCommand() {
-            if (pokemonList.isEmpty()) {
-                return "La tua Pokedex è vuota. Cattura alcuni Pokémon!";
+            if (pokemonSet.isEmpty()) {
+                return "Il Pokedex è vuoto. Cattura alcuni Pokémon!";
             } else {
                 StringBuilder sb = new StringBuilder();
-                sb.append("La tua Pokedex contiene i seguenti Pokémon:\n");
-                for (Pokemon pokemon : pokemonList) {
-                    sb.append(pokemon.getName()).append("\n");
+                sb.append("Il Pokedex contiene i seguenti Pokémon:\n");
+                for (Pokemon pokemon : pokemonSet) {
+                    sb.append("Nome: ").append(pokemon.getName()).append("\n");
+                    sb.append("Altezza: ").append(convertDecimetersToCentimeters(pokemon.getHeight())).append(" cm").append("\n");
+                    sb.append("Peso: ").append(convertHectogramsToKilograms(pokemon.getWeight())).append(" kg").append("\n");
+
+                    Pokemon.Sprites sprites = pokemon.getSprites();
+                    if (sprites != null) {
+                        String frontSpriteUrl = sprites.getFrontDefault();
+                        if (frontSpriteUrl != null) {
+                            sb.append("").append(frontSpriteUrl).append("\n");
+                        }
+                    }
+
+                    sb.append("\n");
                 }
                 return sb.toString();
             }
@@ -267,33 +283,9 @@ public class pokemonjavabot extends TelegramLongPollingBot {
             } else if (command.equals("/stop")) {
                 botCommand = new StopCommand(update.getMessage().getChatId());
             } else if (command.equals("/pokedex")) {
-                StringBuilder responseBuilder = new StringBuilder();
-                for (Pokemon pokemon : pokemonList) {
-                    responseBuilder.append("Nome: ").append(pokemon.getName()).append("\n");
-                    responseBuilder.append("Altezza: ").append(pokemon.getHeight()).append(" cm").append("\n");
-                    responseBuilder.append("Peso: ").append(pokemon.getWeight()).append(" kg").append("\n");
-                    List<Type> types = pokemon.getTypes();
-                    StringBuilder typesStringBuilder = new StringBuilder();
-                    for (Type type : types) {
-                        typesStringBuilder.append(type.getTypeDetails().getName()).append(", ");
-                    }
-                    String pokemonTypes = typesStringBuilder.toString().trim();
-                    pokemonTypes = pokemonTypes.substring(0, pokemonTypes.length() - 1);
-                    responseBuilder.append("Tipo: ").append(pokemonTypes).append("\n");
-
-                    responseBuilder.append("\n");
-                }
-                // Invia il messaggio una sola volta, alla fine del ciclo
-                SendMessage sendMessage = new SendMessage();
-                sendMessage.setText(responseBuilder.toString());
-                sendMessage.setChatId(update.getMessage().getChatId().toString());
-                try {
-                    execute(sendMessage);
-                } catch (TelegramApiException e) {
-                    e.printStackTrace();
-                }
-                return responseBuilder.toString();
-            } else {
+                PokedexCommand pokedexCommand = new PokedexCommand(pokemonList);
+                return pokedexCommand.executeCommand();}
+            else {
                 // Nessun comando corrispondente trovato, restituisci un messaggio di errore o una stringa vuota
                 return "Comando non valido.";
             }

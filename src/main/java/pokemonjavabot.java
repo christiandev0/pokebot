@@ -51,6 +51,7 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                 SendMessage sendMessage = new SendMessage();
                 sendMessage.setText("Benvenuto!");
                 sendMessage.setChatId(update.getMessage().getChatId().toString());
+                isRunning = true;
 
                 try {
                     execute(sendMessage);
@@ -84,7 +85,7 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                 }
             } else if (messageText.startsWith("/cerca ")) {
                 BotCommandHandler commandHandler = new BotCommandHandler();
-                String response = commandHandler.executeCommand(messageText);
+                String response = commandHandler.executeCommand(messageText, update);
                 SendMessage sendMessage = new SendMessage();
                 sendMessage.setText(response);
                 sendMessage.setChatId(update.getMessage().getChatId().toString());
@@ -95,14 +96,23 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                     e.printStackTrace();
                 }} else if (messageText.startsWith("/stop")) {
                 BotCommandHandler commandHandler = new BotCommandHandler();
-                String response = commandHandler.executeCommand(messageText);
+                String response = commandHandler.executeCommand(messageText, update);
                 SendMessage sendMessage = new SendMessage();
                 sendMessage.setText(response);
                 sendMessage.setChatId(update.getMessage().getChatId().toString());
 
+                // Passa l'ID della chat al comando StopCommand
+                BotCommand botCommand = new StopCommand(update.getMessage().getChatId());
+
+                try {
+                    execute(sendMessage);
+                } catch (TelegramApiException e) {
+                    e.printStackTrace();
+                }
+
             } else {
                 BotCommandHandler commandHandler = new BotCommandHandler();
-                String response = commandHandler.executeCommand(messageText);
+                String response = commandHandler.executeCommand(messageText, update);
                 SendMessage sendMessage = new SendMessage();
                 sendMessage.setText(response);
                 sendMessage.setChatId(update.getMessage().getChatId().toString());
@@ -200,21 +210,20 @@ public class pokemonjavabot extends TelegramLongPollingBot {
     public class StopCommand implements BotCommand {
         private Long chatId;
 
-        public Long getChatId(Update update) {
-            Long chatId = update.getMessage().getChatId();
-            return chatId;
+        public StopCommand(Long chatId) {
+            this.chatId = chatId;
         }
         @Override
         public String executeCommand() {
             stopProcessing(chatId);
-            System.out.println("mannagg tutt cos");
+
             return "Hai interrotto la ricerca di Pokémon. Grazie per aver utilizzato il bot!";
         }
     }
 
 
     public class BotCommandHandler {
-        public String executeCommand(String command) {
+        public String executeCommand(String command, Update update) {
             BotCommand botCommand;
             if (command.equals("/start")) {
                 botCommand = new StartCommand();
@@ -223,7 +232,7 @@ public class pokemonjavabot extends TelegramLongPollingBot {
             } else if (command.equals("/cerca")) {
                 return "Per la ricerca scrivi /cerca <nome_pokémon>";
             } else if (command.equals("/stop")) {
-                botCommand = new StartCommand();
+                botCommand = new StopCommand(update.getMessage().getChatId());
             } else {
                 // Nessun comando corrispondente trovato, restituisci un messaggio di errore o una stringa vuota
                 return "Comando non valido.";
@@ -356,7 +365,7 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                 String pokemonName = pokemon.getName();
                 String imageUrl = pokemon.getSprites().getFrontDefault();
 
-                return "È apparso un Pokémon casuale: " + pokemonName + "\n" + imageUrl;
+                return "È apparso " + pokemonName + "!\n" + imageUrl;
             } else {
                 throw new RuntimeException("Errore nella richiesta API: " + response.code());
             }

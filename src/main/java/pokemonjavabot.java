@@ -1,6 +1,7 @@
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendAnimation;
+import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
@@ -24,6 +25,7 @@ public class pokemonjavabot extends TelegramLongPollingBot {
     private PokeApiService pokeApiService;
     private Update currentUpdate;
     private Set<Pokemon> pokemonList;
+    private Set <Pokemon> pokemonSquad;
 
     private boolean isRunning = true; // Variabile flag per indicare se il thread deve essere eseguito
 
@@ -36,6 +38,7 @@ public class pokemonjavabot extends TelegramLongPollingBot {
 
         pokeApiService = retrofit.create(PokeApiService.class);
         pokemonList = new HashSet<>();
+        pokemonSquad = new HashSet<>(5);
     }
 
     @Override
@@ -126,7 +129,20 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                 } catch (TelegramApiException e) {
                     e.printStackTrace();
                 }
-            } else {
+            }else if (messageText.equals("/squadra")) {
+                BotCommandHandler commandHandler = new BotCommandHandler();
+                String response = commandHandler.executeCommand(messageText, update);
+
+                SendMessage sendMessage = new SendMessage();
+                sendMessage.setText(response);
+                sendMessage.setChatId(update.getMessage().getChatId().toString());
+
+                try {
+                    execute(sendMessage);
+                } catch (TelegramApiException e) {
+                    e.printStackTrace();
+                } }
+            else {
                 BotCommandHandler commandHandler = new BotCommandHandler();
                 String response = commandHandler.executeCommand(messageText, update);
                 SendMessage sendMessage = new SendMessage();
@@ -146,7 +162,7 @@ public class pokemonjavabot extends TelegramLongPollingBot {
         String pokemonInfo = "";
         while (isRunning) {
             try {
-                pokemonInfo = spawnRandomPokemon();
+                pokemonInfo = spawnRandomPokemon(update);
             } catch (RuntimeException e) {
                 pokemonInfo = "Errore durante lo spawn del Pokémon casuale: " + e.getMessage();
             }
@@ -269,6 +285,38 @@ public class pokemonjavabot extends TelegramLongPollingBot {
             }
         }
     }
+    public class SquadraCommand implements BotCommand {
+        private Set<Pokemon> pokemonSquad;
+
+        public SquadraCommand(Set<Pokemon> pokemonSquad) {
+            this.pokemonSquad = pokemonSquad;
+        }
+        @Override
+        public String executeCommand() {
+            if (pokemonSquad.isEmpty()) {
+                return "la squadra è vuota. Cattura alcuni Pokémon!";
+            } else {
+                StringBuilder sb = new StringBuilder();
+                sb.append("La squadra contiene i seguenti Pokémon:\n");
+                for (Pokemon pokemon : pokemonSquad) {
+                    sb.append("Nome: ").append(pokemon.getName()).append("\n");
+                    sb.append("Altezza: ").append(convertDecimetersToCentimeters(pokemon.getHeight())).append(" cm").append("\n");
+                    sb.append("Peso: ").append(convertHectogramsToKilograms(pokemon.getWeight())).append(" kg").append("\n");
+
+                    Pokemon.Sprites sprites = pokemon.getSprites();
+                    if (sprites != null) {
+                        String frontSpriteUrl = sprites.getFrontDefault();
+                        if (frontSpriteUrl != null) {
+                            sb.append("").append(frontSpriteUrl).append("\n");
+                        }
+                    }
+
+                    sb.append("\n");
+                }
+                return sb.toString();
+            }
+        }
+    }
 
 
     public class BotCommandHandler {
@@ -284,8 +332,12 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                 botCommand = new StopCommand(update.getMessage().getChatId());
             } else if (command.equals("/pokedex")) {
                 PokedexCommand pokedexCommand = new PokedexCommand(pokemonList);
-                return pokedexCommand.executeCommand();}
-            else {
+                return pokedexCommand.executeCommand();
+            }
+              else if (command.equals("/squadra")) {
+                SquadraCommand squadraCommand = new SquadraCommand(pokemonSquad);
+                return squadraCommand.executeCommand();
+            } else {
                 // Nessun comando corrispondente trovato, restituisci un messaggio di errore o una stringa vuota
                 return "Comando non valido.";
             }
@@ -404,7 +456,7 @@ public class pokemonjavabot extends TelegramLongPollingBot {
     private void start() {
         System.out.println("Benvenuto!\nComincia la tua avventura!");
     }
-    private String spawnRandomPokemon() {
+    private String spawnRandomPokemon(Update update) {
         try {
             Random random = new Random();
             int pokemonId = random.nextInt(898) + 1; // Genera un ID casuale compreso tra 1 e 898
@@ -415,16 +467,30 @@ public class pokemonjavabot extends TelegramLongPollingBot {
             if (response.isSuccessful()) {
                 Pokemon pokemon = response.body();
                 String pokemonName = pokemon.getName();
-                pokemonList.add(pokemon);
                 String imageUrl = pokemon.getSprites().getFrontDefault();
+                SendPhoto sendPhoto = new SendPhoto();
+                sendPhoto.setPhoto(new InputFile(imageUrl));
+                sendPhoto.setChatId(update.getMessage().getChatId().toString());
 
-                return "È apparso " + pokemonName + "!\n" + imageUrl;
+                try {
+                    execute(sendPhoto);
+                } catch (TelegramApiException e) {
+                    e.printStackTrace();
+                }
+
+                pokemonList.add(pokemon);
+                if (pokemonSquad.size() < 5) {
+                pokemonSquad.add(pokemon);
+                    return pokemonName + "è stato aggiunto alla tua squadra!\nUsa /squadra per vedere le sue info!";
+                } else {
+                    return "" + pokemonName + " è fuggito!";
+                }
             } else {
                 throw new RuntimeException("Errore nella richiesta API: " + response.code());
             }
         } catch (IOException e) {
             throw new RuntimeException("Errore durante l'esecuzione della richiesta API", e);
         }
-
     }
+
 }

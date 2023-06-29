@@ -4,6 +4,9 @@ import org.telegram.telegrambots.meta.api.methods.send.SendAnimation;
 import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import retrofit2.Call;
 import retrofit2.Response;
@@ -26,6 +29,7 @@ public class pokemonjavabot extends TelegramLongPollingBot {
     private Update currentUpdate;
     private Set<Pokemon> pokemonList;
     private Set <Pokemon> pokemonSquad;
+    private  Pokemon currentPokemon;
 
     private boolean isRunning = true; // Variabile flag per indicare se il thread deve essere eseguito
 
@@ -178,7 +182,7 @@ public class pokemonjavabot extends TelegramLongPollingBot {
             }
 
             try {
-                Thread.sleep(10000); // Sospende l'esecuzione del thread per 10 secondi
+                Thread.sleep(30000); // Sospende l'esecuzione del thread per 10 secondi
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt(); // Ripristina lo stato interrupt del thread
                 e.printStackTrace(); // Gestisci l'eccezione in base alle tue esigenze
@@ -269,7 +273,7 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                 for (Pokemon pokemon : pokemonSet) {
                     sb.append("Nome: ").append(pokemon.getName()).append("\n");
                     sb.append("Altezza: ").append(convertDecimetersToCentimeters(pokemon.getHeight())).append(" cm").append("\n");
-                    sb.append("Peso: ").append(convertHectogramsToKilograms(pokemon.getWeight())).append(" kg").append("\n");
+                    sb.append("Peso: ").append(convertHectogramsToKilograms(pokemon.getWeight())).append(" kg").append("\n\n");
 
                     Pokemon.Sprites sprites = pokemon.getSprites();
                     if (sprites != null) {
@@ -301,7 +305,7 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                 for (Pokemon pokemon : pokemonSquad) {
                     sb.append("Nome: ").append(pokemon.getName()).append("\n");
                     sb.append("Altezza: ").append(convertDecimetersToCentimeters(pokemon.getHeight())).append(" cm").append("\n");
-                    sb.append("Peso: ").append(convertHectogramsToKilograms(pokemon.getWeight())).append(" kg").append("\n");
+                    sb.append("Peso: ").append(convertHectogramsToKilograms(pokemon.getWeight())).append(" kg").append("\n\n");
 
                     Pokemon.Sprites sprites = pokemon.getSprites();
                     if (sprites != null) {
@@ -318,6 +322,47 @@ public class pokemonjavabot extends TelegramLongPollingBot {
         }
     }
 
+    public class CatturaCommand implements BotCommand {
+        private Set<Pokemon> pokemonSquad;
+
+        public CatturaCommand(Set<Pokemon> pokemonSquad) {
+            this.pokemonSquad = pokemonSquad;
+        }
+
+        @Override
+        public String executeCommand() {
+            // Implementa la logica per aggiungere il Pokémon alla squadra
+            if (pokemonSquad.size() < 5) {
+                pokemonSquad.add(currentPokemon);
+                return "Hai catturato " + currentPokemon.getName() + " e l'hai aggiunto alla tua squadra!";
+            } else {
+                return "La tua squadra è già completa!";
+            }
+        }
+    }
+    public class RimuoviCommand implements BotCommand {
+        private Set<Pokemon> pokemonSquad;
+        private String pokemonName;
+
+        public RimuoviCommand(Set<Pokemon> pokemonSquad, String pokemonName) {
+            this.pokemonSquad = pokemonSquad;
+            this.pokemonName = pokemonName;
+        }
+
+        @Override
+        public String executeCommand() {
+            // Cerca il Pokémon nella squadra e rimuovilo se presente
+            for (Pokemon pokemon : pokemonSquad) {
+                if (pokemon.getName().equalsIgnoreCase(pokemonName)) {
+                    pokemonSquad.remove(pokemon);
+                    return "Il Pokémon " + pokemonName + " è stato rimosso dalla squadra.";
+                }
+            }
+
+            // Il Pokémon non è stato trovato nella squadra
+            return "Il Pokémon " + pokemonName + " non è presente nella squadra.";
+        }
+    }
 
     public class BotCommandHandler {
         public String executeCommand(String command, Update update) {
@@ -337,7 +382,14 @@ public class pokemonjavabot extends TelegramLongPollingBot {
               else if (command.equals("/squadra")) {
                 SquadraCommand squadraCommand = new SquadraCommand(pokemonSquad);
                 return squadraCommand.executeCommand();
-            } else {
+            } else if (command.equals("/cattura")) {
+                botCommand = new CatturaCommand(pokemonSquad);
+
+            } else if (command.startsWith("/rimuovi ")) {
+                String pokemonName = command.substring(9); // Ottieni il nome del Pokémon da rimuovere
+                botCommand = new RimuoviCommand(pokemonSquad, pokemonName);
+            }
+            else {
                 // Nessun comando corrispondente trovato, restituisci un messaggio di errore o una stringa vuota
                 return "Comando non valido.";
             }
@@ -353,6 +405,8 @@ public class pokemonjavabot extends TelegramLongPollingBot {
             sb.append("/info - Mostra informazioni sul bot\n");
             sb.append("/cerca <nome_pokémon> - Cerca informazioni su un Pokémon\n");
             sb.append("/stop Esci dall'erba alta per non incontrare altri pokemon!");
+            sb.append("/cattura ti permette di catturare il pokémon apparso!");
+            sb.append("/rimuovi consente di liberare un pokémon dalla squadra ");
 
             return sb.toString();}
         public String executeInfoCommand() {
@@ -471,20 +525,33 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                 SendPhoto sendPhoto = new SendPhoto();
                 sendPhoto.setPhoto(new InputFile(imageUrl));
                 sendPhoto.setChatId(update.getMessage().getChatId().toString());
+                currentPokemon = pokemon;
+                pokemonList.add(pokemon);
 
                 try {
                     execute(sendPhoto);
                 } catch (TelegramApiException e) {
                     e.printStackTrace();
                 }
-
-                pokemonList.add(pokemon);
-                if (pokemonSquad.size() < 5) {
-                pokemonSquad.add(pokemon);
-                    return pokemonName + "è stato aggiunto alla tua squadra!\nUsa /squadra per vedere le sue info!";
-                } else {
-                    return "" + pokemonName + " è fuggito!";
+                SendMessage risposta = new SendMessage();
+                risposta.setText("È apparso " + pokemonName + "! Vuoi catturarlo e aggiungerlo alla tua squadra? (/cattura)");
+                risposta.setChatId(update.getMessage().getChatId().toString());
+                // Invia la tastiera personalizzata con i pulsanti "Si" e "No"
+                ReplyKeyboardMarkup replyMarkup = new ReplyKeyboardMarkup();
+                KeyboardButton catturaButton = new KeyboardButton("/cattura");
+                KeyboardButton noButton = new KeyboardButton("No");
+                KeyboardRow keyboardRow = new KeyboardRow();
+                keyboardRow.add(catturaButton);
+                keyboardRow.add(noButton);
+                replyMarkup.setKeyboard(List.of(keyboardRow));
+                risposta.setReplyMarkup(replyMarkup);
+                try {
+                    execute(risposta);
+                } catch (TelegramApiException e) {
+                    e.printStackTrace();
                 }
+
+                return "";
             } else {
                 throw new RuntimeException("Errore nella richiesta API: " + response.code());
             }

@@ -30,8 +30,15 @@ public class pokemonjavabot extends TelegramLongPollingBot {
     private Set<Pokemon> pokemonList;
     private Set <Pokemon> pokemonSquad;
     private  Pokemon currentPokemon;
+    private Long chatId;
+    private final Map<Long, pokemonjavabot> pokemonbotIstancies;
+    private final Map<Long, UserState> userStates;
 
-    private boolean isRunning = true; // Variabile flag per indicare se il thread deve essere eseguito
+    private final Map<Long, BotCommandHandler> botcommandhandleristancies;
+
+
+
+
 
 
     public pokemonjavabot() {
@@ -39,132 +46,68 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                 .baseUrl(POKEAPI_BASE_URL)
                 .addConverterFactory(GsonConverterFactory.create())
                 .build();
-
         pokeApiService = retrofit.create(PokeApiService.class);
         pokemonList = new HashSet<>();
-        pokemonSquad = new HashSet<>(5);
+        pokemonSquad = new HashSet<>(6);
+        pokemonbotIstancies = new HashMap<>();
+        userStates = new HashMap<>();
+        botcommandhandleristancies = new HashMap<>();
     }
 
     @Override
     public void onUpdateReceived(Update update) {
         currentUpdate = update;
-
         if (update.hasMessage() && update.getMessage().hasText()) {
             String messageText = update.getMessage().getText();
-            Long chatId = update.getMessage().getChatId();
+            chatId = update.getMessage().getChatId();
+
             System.out.println(update.getMessage().getText());
             System.out.println(update.getMessage().getFrom().getFirstName());
 
+            BotCommandHandler commandHandler = new BotCommandHandler(userStates);
+            String response;
+
             if (messageText.equals("/start")) {
-                SendMessage sendMessage = new SendMessage();
-                sendMessage.setText("Benvenuto!");
-                sendMessage.setChatId(update.getMessage().getChatId().toString());
-                isRunning = true;
-                Thread requestThread = new Thread(() -> processRequest(update));
+                UserState userState = new UserState(); // Crea una nuova istanza di UserState
+                userState.setRunning(true); // Imposta il flag di esecuzione su true
+                userStates.put(chatId, userState); // Inserisci lo stato dell'utente nella mappa
+                response = commandHandler.executeCommand("/start", update);
+                Thread requestThread = new Thread(() -> processRequest(update, userState));
                 requestThread.start();
-
-                try {
-                    execute(sendMessage);
-                } catch (TelegramApiException e) {
-                    e.printStackTrace();
-                }
-            }
-            if (messageText.equals("/help")) {
-                BotCommandHandler commandHandler = new BotCommandHandler();
-                String response = commandHandler.executeHelpCommand();
-                SendMessage sendMessage = new SendMessage();
-                sendMessage.setText(response);
-                sendMessage.setChatId(update.getMessage().getChatId().toString());
-
-                try {
-                    execute(sendMessage);
-                } catch (TelegramApiException e) {
-                    e.printStackTrace();
-                }
+            } else if (messageText.equals("/help")) {
+                response = commandHandler.executeCommand("/help", update);
             } else if (messageText.equals("/info")) {
-                BotCommandHandler commandHandler = new BotCommandHandler();
-                String response = commandHandler.executeInfoCommand();
-                SendMessage sendMessage = new SendMessage();
-                sendMessage.setText(response);
-                sendMessage.setChatId(update.getMessage().getChatId().toString());
-
-                try {
-                    execute(sendMessage);
-                } catch (TelegramApiException e) {
-                    e.printStackTrace();
+                response = commandHandler.executeCommand("/info", update);
+            } else if (messageText.equals("/cerca")) {
+                response = commandHandler.executeCommand("/cerca", update);
+            } else if (messageText.equals("/stop")) {
+                UserState userState = userStates.get(chatId);
+                userState.setRunning(false);
+                if (userState != null) {
+                    userState.setRunning(false); // Imposta il flag di esecuzione su false
                 }
-            } else if (messageText.startsWith("/cerca ")) {
-                BotCommandHandler commandHandler = new BotCommandHandler();
-                String response = commandHandler.executeCommand(messageText, update);
-                SendMessage sendMessage = new SendMessage();
-                sendMessage.setText(response);
-                sendMessage.setChatId(update.getMessage().getChatId().toString());
-
-                try {
-                    execute(sendMessage);
-                } catch (TelegramApiException e) {
-                    e.printStackTrace();
-                }} else if (messageText.equals("/stop")) {
-                BotCommandHandler commandHandler = new BotCommandHandler();
-                String response = commandHandler.executeCommand(messageText, update);
-                SendMessage sendMessage = new SendMessage();
-                sendMessage.setText(response);
-                sendMessage.setChatId(update.getMessage().getChatId().toString());
-
-                // Passa l'ID della chat al comando StopCommand
-                BotCommand botCommand = new StopCommand(update.getMessage().getChatId());
-
-                try {
-                    execute(sendMessage);
-                } catch (TelegramApiException e) {
-                    e.printStackTrace();
-                }
-
+               response = commandHandler.executeCommand("/stop", update);
             } else if (messageText.equals("/pokedex")) {
-                BotCommandHandler commandHandler = new BotCommandHandler();
-                String response = commandHandler.executeCommand(messageText, update);
+                response = commandHandler.executeCommand("/pokedex", update);
+            } else if (messageText.equals("squadra")) {
+                response = commandHandler.executeCommand("/squadra", update);
+            } else {
+                response = commandHandler.executeCommand(messageText, update);
+            }
+            SendMessage sendMessage = new SendMessage();
+            sendMessage.setText(response);
+            sendMessage.setChatId(update.getMessage().getChatId().toString());
 
-                SendMessage sendMessage = new SendMessage();
-                sendMessage.setText(response);
-                sendMessage.setChatId(update.getMessage().getChatId().toString());
-
-                try {
-                    execute(sendMessage);
-                } catch (TelegramApiException e) {
-                    e.printStackTrace();
-                }
-            }else if (messageText.equals("/squadra")) {
-                BotCommandHandler commandHandler = new BotCommandHandler();
-                String response = commandHandler.executeCommand(messageText, update);
-
-                SendMessage sendMessage = new SendMessage();
-                sendMessage.setText(response);
-                sendMessage.setChatId(update.getMessage().getChatId().toString());
-
-                try {
-                    execute(sendMessage);
-                } catch (TelegramApiException e) {
-                    e.printStackTrace();
-                } }
-            else {
-                BotCommandHandler commandHandler = new BotCommandHandler();
-                String response = commandHandler.executeCommand(messageText, update);
-                SendMessage sendMessage = new SendMessage();
-                sendMessage.setText(response);
-                sendMessage.setChatId(update.getMessage().getChatId().toString());
-
-                try {
-                    execute(sendMessage);
-                } catch (TelegramApiException e) {
-                    e.printStackTrace();
-                }
+            try {
+                execute(sendMessage);
+            } catch (TelegramApiException e) {
+                e.printStackTrace();
+            }
             }
         }
-    }
-
-    private void processRequest(Update update) {
-        String pokemonInfo = "";
-        while (isRunning) {
+    private void processRequest(Update update, UserState userState) {
+        String pokemonInfo;
+        while (userState.isRunning()) {
             try {
                 pokemonInfo = spawnRandomPokemon(update);
             } catch (RuntimeException e) {
@@ -191,7 +134,7 @@ public class pokemonjavabot extends TelegramLongPollingBot {
     }
 
     public void stopProcessing(Long chatId) {
-        isRunning = false;
+
         SendMessage sendMessage = new SendMessage();
         sendMessage.setText("Il sentiero adesso è privo di erba alta");
         sendMessage.setChatId(chatId.toString());
@@ -257,25 +200,28 @@ public class pokemonjavabot extends TelegramLongPollingBot {
             return "Hai interrotto la ricerca di Pokémon. Grazie per aver utilizzato il bot!";
         }
     }
-    public class PokedexCommand implements BotCommand {
-        private Set<Pokemon> pokemonSet;
 
-        public PokedexCommand(Set<Pokemon> pokemonSet) {
-            this.pokemonSet = pokemonSet;
-        }
-        @Override
-        public String executeCommand() {
-            if (pokemonSet.isEmpty()) {
-                return "Il Pokedex è vuoto. Cattura alcuni Pokémon!";
-            } else {
-                StringBuilder sb = new StringBuilder();
-                sb.append("Il Pokedex contiene i seguenti Pokémon:\n");
-                for (Pokemon pokemon : pokemonSet) {
-                    sb.append("Nome: ").append(pokemon.getName()).append("\n");
-                    sb.append("Altezza: ").append(convertDecimetersToCentimeters(pokemon.getHeight())).append(" cm").append("\n");
-                    sb.append("Peso: ").append(convertHectogramsToKilograms(pokemon.getWeight())).append(" kg").append("\n\n");
+        public class PokedexCommand implements BotCommand {
+            private UserState userState;
 
-                    Pokemon.Sprites sprites = pokemon.getSprites();
+            public PokedexCommand(UserState userState) {
+                this.userState = userState;
+            }
+
+            @Override
+            public String executeCommand() {
+                Set<Pokemon> pokemonSet = userState.getPokemonList();
+                if (pokemonSet.isEmpty()) {
+                    return "Il Pokedex è vuoto. Cattura alcuni Pokémon!";
+                } else {
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("Il Pokedex contiene i seguenti Pokémon:\n");
+                    for (Pokemon pokemon : pokemonSet) {
+                        sb.append("Nome: ").append(pokemon.getName()).append("\n");
+                        sb.append("Altezza: ").append(convertDecimetersToCentimeters(pokemon.getHeight())).append(" cm").append("\n");
+                        sb.append("Peso: ").append(convertHectogramsToKilograms(pokemon.getWeight())).append(" kg").append("\n\n");
+
+                        Pokemon.Sprites sprites = pokemon.getSprites();
                     if (sprites != null) {
                         String frontSpriteUrl = sprites.getFrontDefault();
                         if (frontSpriteUrl != null) {
@@ -289,16 +235,19 @@ public class pokemonjavabot extends TelegramLongPollingBot {
             }
         }
     }
-    public class SquadraCommand implements BotCommand {
-        private Set<Pokemon> pokemonSquad;
 
-        public SquadraCommand(Set<Pokemon> pokemonSquad) {
-            this.pokemonSquad = pokemonSquad;
+    public class SquadraCommand implements BotCommand {
+        private UserState userState;
+
+        public SquadraCommand(UserState userState) {
+            this.userState = userState;
         }
+
         @Override
         public String executeCommand() {
+            Set<Pokemon> pokemonSquad = userState.getPokemonSquad();
             if (pokemonSquad.isEmpty()) {
-                return "la squadra è vuota. Cattura alcuni Pokémon!";
+                return "La squadra è vuota. Cattura alcuni Pokémon!";
             } else {
                 StringBuilder sb = new StringBuilder();
                 sb.append("La squadra contiene i seguenti Pokémon:\n");
@@ -323,16 +272,18 @@ public class pokemonjavabot extends TelegramLongPollingBot {
     }
 
     public class CatturaCommand implements BotCommand {
-        private Set<Pokemon> pokemonSquad;
+        private UserState userState;
 
-        public CatturaCommand(Set<Pokemon> pokemonSquad) {
-            this.pokemonSquad = pokemonSquad;
+        public CatturaCommand(UserState userState) {
+            this.userState = userState;
         }
 
         @Override
         public String executeCommand() {
-            // Implementa la logica per aggiungere il Pokémon alla squadra
-            if (pokemonSquad.size() < 5) {
+            Set<Pokemon> pokemonSquad = userState.getPokemonSquad();
+            Set<Pokemon> pokemonList = userState.getPokemonList();
+            pokemonList.add(currentPokemon);
+            if (pokemonSquad.size() < 6) {
                 pokemonSquad.add(currentPokemon);
                 return "Hai catturato " + currentPokemon.getName() + " e l'hai aggiunto alla tua squadra!";
             } else {
@@ -340,64 +291,84 @@ public class pokemonjavabot extends TelegramLongPollingBot {
             }
         }
     }
-    public class RimuoviCommand implements BotCommand {
-        private Set<Pokemon> pokemonSquad;
-        private String pokemonName;
+   public class RimuoviCommand implements BotCommand {
+       private UserState userState;
+       private String pokemonName;
 
-        public RimuoviCommand(Set<Pokemon> pokemonSquad, String pokemonName) {
-            this.pokemonSquad = pokemonSquad;
-            this.pokemonName = pokemonName;
-        }
+       public RimuoviCommand(UserState userState, String pokemonName) {
+           this.userState = userState;
+           this.pokemonName = pokemonName;
+       }
 
-        @Override
-        public String executeCommand() {
-            // Cerca il Pokémon nella squadra e rimuovilo se presente
-            for (Pokemon pokemon : pokemonSquad) {
-                if (pokemon.getName().equalsIgnoreCase(pokemonName)) {
-                    pokemonSquad.remove(pokemon);
-                    return "Il Pokémon " + pokemonName + " è stato rimosso dalla squadra.";
-                }
-            }
-
-            // Il Pokémon non è stato trovato nella squadra
-            return "Il Pokémon " + pokemonName + " non è presente nella squadra.";
-        }
-    }
+       @Override
+       public String executeCommand() {
+           Set<Pokemon> pokemonSquad = userState.getPokemonSquad();
+           Pokemon pokemonToRemove = null;
+           for (Pokemon pokemon : pokemonSquad) {
+               if (pokemon.getName().equalsIgnoreCase(pokemonName)) {
+                   pokemonToRemove = pokemon;
+                   break;
+               }
+           }
+           if (pokemonToRemove != null) {
+               pokemonSquad.remove(pokemonToRemove);
+               return "Il Pokémon " + pokemonName + " è stato rimosso dalla squadra.";
+           } else {
+               return "Il Pokémon " + pokemonName + " non è presente nella squadra.";
+           }
+       }
+   }
 
     public class BotCommandHandler {
+        private final Map<Long,UserState> UserStates;
+
+        public BotCommandHandler(Map<Long, UserState> userStates) {
+            this.UserStates= userStates;
+        }
+        public void stopProcessing(Long chatId) {
+            UserState userState = userStates.get(chatId);
+            if (userState != null) {
+                userState.setRunning(false);
+            }}
+
         public String executeCommand(String command, Update update) {
             BotCommand botCommand;
+            long chatId = update.getMessage().getChatId();
+            UserState userState = userStates.get(chatId);
+
             if (command.equals("/start")) {
+                userState = new UserState(chatId);
+                userStates.put(chatId, userState);
                 botCommand = new StartCommand();
             } else if (command.startsWith("/cerca ")) {
                 botCommand = new SearchCommand(command.substring(7));
             } else if (command.equals("/cerca")) {
                 return "Per la ricerca scrivi /cerca <nome_pokémon>";
             } else if (command.equals("/stop")) {
-                botCommand = new StopCommand(update.getMessage().getChatId());
+                userState.setRunning(false);
+                botCommand = new StopCommand(chatId);
             } else if (command.equals("/pokedex")) {
-                PokedexCommand pokedexCommand = new PokedexCommand(pokemonList);
-                return pokedexCommand.executeCommand();
-            }
-              else if (command.equals("/squadra")) {
-                SquadraCommand squadraCommand = new SquadraCommand(pokemonSquad);
-                return squadraCommand.executeCommand();
+                botCommand = new PokedexCommand(userState);
+            } else if (command.equals("/info")) {
+                return executeInfoCommand(userStates);
+            } else if (command.equals("/help")) {
+                return executeHelpCommand(userStates);
+            } else if (command.equals("/squadra")) {
+                botCommand = new SquadraCommand(userState);
             } else if (command.equals("/cattura")) {
-                botCommand = new CatturaCommand(pokemonSquad);
-
+                botCommand = new CatturaCommand(userState);
             } else if (command.startsWith("/rimuovi ")) {
-                String pokemonName = command.substring(9); // Ottieni il nome del Pokémon da rimuovere
-                botCommand = new RimuoviCommand(pokemonSquad, pokemonName);
-            }
-            else {
-                // Nessun comando corrispondente trovato, restituisci un messaggio di errore o una stringa vuota
+                String pokemonName = command.substring(9);
+                botCommand = new RimuoviCommand((UserState) userState.getPokemonSquad(), pokemonName);
+            } else {
                 return "Comando non valido.";
             }
+
             return botCommand.executeCommand();
         }
 
 
-        public String executeHelpCommand() {
+        public String executeHelpCommand(Map<Long, UserState> userStates) {
             StringBuilder sb = new StringBuilder();
             sb.append("Ecco alcuni comandi disponibili:\n");
             sb.append("/start - Avvia il bot\n");
@@ -409,7 +380,7 @@ public class pokemonjavabot extends TelegramLongPollingBot {
             sb.append("/rimuovi consente di liberare un pokémon dalla squadra ");
 
             return sb.toString();}
-        public String executeInfoCommand() {
+        public String executeInfoCommand(Map<Long, UserState> userStates) {
             StringBuilder sb = new StringBuilder();
             sb.append("Questo è un bot per ottenere informazioni sui Pokémon.\n");
             sb.append("È possibile utilizzare il comando /cerca seguito dal nome di un Pokémon per cercare informazioni su di esso.\n");
@@ -558,6 +529,9 @@ public class pokemonjavabot extends TelegramLongPollingBot {
         } catch (IOException e) {
             throw new RuntimeException("Errore durante l'esecuzione della richiesta API", e);
         }
+    }
+    private BotCommandHandler getbotistancies(Long chatId){
+        return botcommandhandleristancies.computeIfAbsent(chatId, k-> new BotCommandHandler(userStates));
     }
 
 }

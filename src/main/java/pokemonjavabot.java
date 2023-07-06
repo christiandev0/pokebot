@@ -35,6 +35,8 @@ public class pokemonjavabot extends TelegramLongPollingBot {
     private final Map<Long, UserState> userStates;
 
     private final Map<Long, BotCommandHandler> botcommandhandleristancies;
+    private boolean isRunning = true; // Variabile flag per indicare se il thread deve essere eseguito
+
 
 
 
@@ -68,8 +70,9 @@ public class pokemonjavabot extends TelegramLongPollingBot {
             String response;
 
             if (messageText.equals("/start")) {
-                UserState userState = new UserState(); // Crea una nuova istanza di UserState
+                UserState userState = new UserState(chatId); // Crea una nuova istanza di UserState
                 userState.setRunning(true); // Imposta il flag di esecuzione su true
+                isRunning = userState.isRunning();
                 userStates.put(chatId, userState); // Inserisci lo stato dell'utente nella mappa
                 response = commandHandler.executeCommand("/start", update);
                 Thread requestThread = new Thread(() -> processRequest(update, userState));
@@ -82,11 +85,12 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                 response = commandHandler.executeCommand("/cerca", update);
             } else if (messageText.equals("/stop")) {
                 UserState userState = userStates.get(chatId);
-                userState.setRunning(false);
                 if (userState != null) {
-                    userState.setRunning(false); // Imposta il flag di esecuzione su false
+                    commandHandler.stopProcessing(chatId, userState);
+                    response = commandHandler.executeCommand("/stop", update);
+                } else {
+                    response = "Non è possibile interrompere la ricerca. Riprova più tardi.";
                 }
-               response = commandHandler.executeCommand("/stop", update);
             } else if (messageText.equals("/pokedex")) {
                 response = commandHandler.executeCommand("/pokedex", update);
             } else if (messageText.equals("squadra")) {
@@ -106,8 +110,8 @@ public class pokemonjavabot extends TelegramLongPollingBot {
             }
         }
     private void processRequest(Update update, UserState userState) {
-        String pokemonInfo;
-        while (userState.isRunning()) {
+        String pokemonInfo = "";
+        while (isRunning) {
             try {
                 pokemonInfo = spawnRandomPokemon(update);
             } catch (RuntimeException e) {
@@ -133,8 +137,8 @@ public class pokemonjavabot extends TelegramLongPollingBot {
         }
     }
 
-    public void stopProcessing(Long chatId) {
-
+    public void stopProcessing(Long chatId, UserState userState) {
+        isRunning = false;
         SendMessage sendMessage = new SendMessage();
         sendMessage.setText("Il sentiero adesso è privo di erba alta");
         sendMessage.setChatId(chatId.toString());
@@ -145,6 +149,8 @@ public class pokemonjavabot extends TelegramLongPollingBot {
             e.printStackTrace();
         }
     }
+
+
 
     private void sendPokemonInfo(String response, String gifUrl) {
         SendMessage sendMessage = new SendMessage();
@@ -189,13 +195,16 @@ public class pokemonjavabot extends TelegramLongPollingBot {
     }
     public class StopCommand implements BotCommand {
         private Long chatId;
+        private UserState userState;
 
-        public StopCommand(Long chatId) {
+        public StopCommand(Long chatId, UserState userState) {
             this.chatId = chatId;
+            this.userState = userState;
         }
+
         @Override
         public String executeCommand() {
-            stopProcessing(chatId);
+            stopProcessing(chatId, userState);
 
             return "Hai interrotto la ricerca di Pokémon. Grazie per aver utilizzato il bot!";
         }
@@ -320,21 +329,28 @@ public class pokemonjavabot extends TelegramLongPollingBot {
    }
 
     public class BotCommandHandler {
-        private final Map<Long,UserState> UserStates;
+        private Map<Long, UserState> userStates;
 
         public BotCommandHandler(Map<Long, UserState> userStates) {
-            this.UserStates= userStates;
+            this.userStates = userStates;
         }
-        public void stopProcessing(Long chatId) {
-            UserState userState = userStates.get(chatId);
+
+        public void stopProcessing(Long chatId, UserState userState) {
+             userState = userStates.get(chatId);
             if (userState != null) {
                 userState.setRunning(false);
-            }}
+            }
+            else userState.setRunning(false);
+        }
+
 
         public String executeCommand(String command, Update update) {
-            BotCommand botCommand;
+            BotCommandHandler commandHandler = new BotCommandHandler(userStates);
+            String response;
+
             long chatId = update.getMessage().getChatId();
             UserState userState = userStates.get(chatId);
+            BotCommand botCommand;
 
             if (command.equals("/start")) {
                 userState = new UserState(chatId);
@@ -345,8 +361,12 @@ public class pokemonjavabot extends TelegramLongPollingBot {
             } else if (command.equals("/cerca")) {
                 return "Per la ricerca scrivi /cerca <nome_pokémon>";
             } else if (command.equals("/stop")) {
-                userState.setRunning(false);
-                botCommand = new StopCommand(chatId);
+                if (userState != null) {
+                    commandHandler.stopProcessing(chatId, userState);
+                    botCommand = new StopCommand(chatId, userState);
+                } else {
+                    return "Non è possibile interrompere la ricerca. Riprova più tardi.";
+                }
             } else if (command.equals("/pokedex")) {
                 botCommand = new PokedexCommand(userState);
             } else if (command.equals("/info")) {
@@ -364,7 +384,8 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                 return "Comando non valido.";
             }
 
-            return botCommand.executeCommand();
+            response = botCommand.executeCommand();
+            return response;
         }
 
 

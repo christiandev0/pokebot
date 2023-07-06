@@ -152,18 +152,14 @@ public class pokemonjavabot extends TelegramLongPollingBot {
 
 
 
-    private void sendPokemonInfo(String response, String gifUrl) {
-        SendMessage sendMessage = new SendMessage();
-        sendMessage.setText(response);
-        sendMessage.setChatId(currentUpdate.getMessage().getChatId().toString());
-
-        SendAnimation sendAnimation = new SendAnimation();
-        sendAnimation.setAnimation(new InputFile(gifUrl));
-        sendAnimation.setChatId(currentUpdate.getMessage().getChatId().toString());
+    private void sendPokemonInfo(String response, String imageUrl) {
+        SendPhoto sendPhoto = new SendPhoto();
+        sendPhoto.setPhoto(new InputFile(imageUrl));
+        sendPhoto.setChatId(currentUpdate.getMessage().getChatId().toString());
+        sendPhoto.setCaption(response);
 
         try {
-            execute(sendMessage);
-            execute(sendAnimation);
+            execute(sendPhoto);
         } catch (TelegramApiException e) {
             e.printStackTrace();
         }
@@ -229,6 +225,14 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                         sb.append("Nome: ").append(pokemon.getName()).append("\n");
                         sb.append("Altezza: ").append(convertDecimetersToCentimeters(pokemon.getHeight())).append(" cm").append("\n");
                         sb.append("Peso: ").append(convertHectogramsToKilograms(pokemon.getWeight())).append(" kg").append("\n\n");
+                        List<Type> types = pokemon.getTypes();
+                        StringBuilder typesStringBuilder = new StringBuilder();
+                        for (Type type : types) {
+                            typesStringBuilder.append(type.getTypeDetails().getName()).append(", ");
+                        }
+                        String pokemonTypes = typesStringBuilder.toString().trim();
+                        pokemonTypes = pokemonTypes.substring(0, pokemonTypes.length() - 1);
+                        sb.append("Tipo: ").append(pokemonTypes).append("\n");
 
                         Pokemon.Sprites sprites = pokemon.getSprites();
                     if (sprites != null) {
@@ -262,8 +266,7 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                 sb.append("La squadra contiene i seguenti Pokémon:\n");
                 for (Pokemon pokemon : pokemonSquad) {
                     sb.append("Nome: ").append(pokemon.getName()).append("\n");
-                    sb.append("Altezza: ").append(convertDecimetersToCentimeters(pokemon.getHeight())).append(" cm").append("\n");
-                    sb.append("Peso: ").append(convertHectogramsToKilograms(pokemon.getWeight())).append(" kg").append("\n\n");
+
 
                     Pokemon.Sprites sprites = pokemon.getSprites();
                     if (sprites != null) {
@@ -273,7 +276,7 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                         }
                     }
 
-                    sb.append("\n");
+                    sb.append("\n\n\n\n");
                 }
                 return sb.toString();
             }
@@ -379,7 +382,10 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                 botCommand = new CatturaCommand(userState);
             } else if (command.startsWith("/rimuovi ")) {
                 String pokemonName = command.substring(9);
-                botCommand = new RimuoviCommand((UserState) userState.getPokemonSquad(), pokemonName);
+                botCommand = new RimuoviCommand(userState, pokemonName);
+            } else if (command.equals("/No")) {
+                return ""+ currentPokemon.getName()+ " è fuggito!";
+
             } else {
                 return "Comando non valido.";
             }
@@ -398,7 +404,7 @@ public class pokemonjavabot extends TelegramLongPollingBot {
             sb.append("/cerca <nome_pokémon> - Cerca informazioni su un Pokémon\n");
             sb.append("/stop Esci dall'erba alta per non incontrare altri pokemon!");
             sb.append("/cattura ti permette di catturare il pokémon apparso!");
-            sb.append("/rimuovi consente di liberare un pokémon dalla squadra ");
+            sb.append("/rimuovi <nome_pokemon> consente di liberare un pokémon dalla squadra ");
 
             return sb.toString();}
         public String executeInfoCommand(Map<Long, UserState> userStates) {
@@ -531,7 +537,7 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                 // Invia la tastiera personalizzata con i pulsanti "Si" e "No"
                 ReplyKeyboardMarkup replyMarkup = new ReplyKeyboardMarkup();
                 KeyboardButton catturaButton = new KeyboardButton("/cattura");
-                KeyboardButton noButton = new KeyboardButton("No");
+                KeyboardButton noButton = new KeyboardButton("/No");
                 KeyboardRow keyboardRow = new KeyboardRow();
                 keyboardRow.add(catturaButton);
                 keyboardRow.add(noButton);

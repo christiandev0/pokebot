@@ -37,7 +37,7 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                 .build();
         pokeApiService = retrofit.create(PokeApiService.class);
         pokemonList = new HashSet<>();
-        pokemonSquad = new HashSet<>(5);
+        pokemonSquad = new HashSet<>(6);
         userStates = new HashMap<>();
         threadspawn = new Threadspawn();
     }
@@ -212,7 +212,7 @@ public class pokemonjavabot extends TelegramLongPollingBot {
             Pokemon pokemonDaCatturare = userState.getCurrentPokemon();
             if (pokemonDaCatturare!=null){
             pokemonList.add(pokemonDaCatturare);
-            if (pokemonSquad.size() < 5) {
+            if (pokemonSquad.size() < 6) {
                 pokemonSquad.add(pokemonDaCatturare);
                 return "Hai catturato " + pokemonDaCatturare.getName() + " e l'hai aggiunto alla tua squadra!";
             } else {

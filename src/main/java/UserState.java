@@ -20,7 +20,7 @@ public class UserState {
     public UserState(long chatId) {
         this.chatId = chatId;
         this.currentState = "start"; // Stato iniziale
-        this.pokemonSquad = new HashSet<>(5);
+        this.pokemonSquad = new HashSet<>(6);
         this.pokemonList = new HashSet<>();
         this.isRunning = true;
     }

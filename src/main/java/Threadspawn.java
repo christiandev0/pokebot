@@ -24,12 +24,16 @@ public class Threadspawn implements Runnable {
     }
     @Override
     public void run() {
-        while (isRunning) {
+        while (!Thread.currentThread().isInterrupted()) {
             try {
                 String pokemonInfo = commandHandler.spawnRandomPokemon(update, userState);
                 SendMessage response = new SendMessage();
                 response.setChatId(update.getMessage().getChatId());
                 response.setText(pokemonInfo);
+                if (Thread.interrupted()) {
+                    // Se il thread è stato interrotto, esci dal ciclo
+                    break;
+                }
                 try {
                     bot.execute(response); // Invia il messaggio di risposta
                 } catch (TelegramApiException e) {
@@ -46,4 +50,5 @@ public class Threadspawn implements Runnable {
             }
         }
     }
+
 }

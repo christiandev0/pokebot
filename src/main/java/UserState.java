@@ -20,8 +20,8 @@ public class UserState {
     public UserState(long chatId) {
         this.chatId = chatId;
         this.currentState = "start"; // Stato iniziale
-        this.pokemonSquad = new HashSet<>(6);
-        this.pokemonList = new HashSet<>(6);
+        this.pokemonSquad = new HashSet<>(5);
+        this.pokemonList = new HashSet<>();
         this.isRunning = true;
     }
 
@@ -39,6 +39,11 @@ public class UserState {
 
     public void setRequestThread(Thread requestThread) {
         this.requestThread = requestThread;
+    }
+    public void stopRequestThread() {
+        if (requestThread != null) {
+            requestThread.interrupt();
+        }
     }
 
     public Update getCurrentUpdate() {
@@ -89,6 +94,7 @@ public class UserState {
         if (pokemonToRemove != null) {
             pokemonSquad.remove(pokemonToRemove);
         }
+
     }
     public Set<Pokemon> getPokemonList() {
         return pokemonList;

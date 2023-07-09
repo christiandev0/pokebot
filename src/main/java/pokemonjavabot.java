@@ -59,8 +59,24 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                 Threadspawn threadspawn = new Threadspawn(this, update, userState, commandHandler);
                 Thread requestThread = new Thread(threadspawn);
                 userState.setRequestThread(requestThread);
-                requestThread.start();
+                userState.getRequestThread().start();
                 response = startCommand.executeCommand();
+            } else if (messageText.equals("/stop")) {
+                userState = userStates.get(chatId);
+                if (userState != null) {
+                    if (userState.getRequestThread() != null) {
+                        try {
+                            userState.getRequestThread().interrupt();
+                            userState.getRequestThread().join();
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+                    userStates.remove(chatId); // Rimuovi lo stato dell'utente dalla mappa dopo la terminazione
+                    response = commandHandler.executeCommand("/stop", update);
+                } else {
+                    response = "Nessuna ricerca in corso da interrompere.";
+                }
             } else if (messageText.equals("/help")) {
                 response = commandHandler.executeCommand("/help", update);
             } else if (messageText.equals("/info")) {
@@ -215,19 +231,12 @@ public class pokemonjavabot extends TelegramLongPollingBot {
         }
         @Override
         public String executeCommand() {
-            Set<Pokemon> pokemonSquad = userState.getPokemonSquad();
-            Pokemon pokemonToRemove = null;
-            for (Pokemon pokemon : pokemonSquad) {
-                if (pokemon.getName().equalsIgnoreCase(pokemonName)) {
-                    pokemonToRemove = pokemon;
-                    break;
-                }
-            }
-            if (pokemonToRemove != null) {
-                pokemonSquad.remove(pokemonToRemove);
-                return "Il Pokémon " + pokemonName + " è stato rimosso dalla squadra.";
-            } else {
+            userState.removePokemonFromSquad(pokemonName);
+            if (pokemonName==null){
                 return "Il Pokémon " + pokemonName + " non è presente nella squadra.";
+            }
+            else {
+                return "Il Pokémon " + pokemonName + " è stato rimosso dalla squadra.";
             }
         }
     }
@@ -259,6 +268,8 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                 botCommand = new SquadraCommand(userState);
             } else if (command.equals("/cattura")) {
                 botCommand = new CatturaCommand(userState);
+            }else if (command.equals("/stop")) {
+                botCommand = new StopCommand(userState);
             } else if (command.startsWith("/rimuovi ")) {
                 String pokemonName = command.substring(9);
                 botCommand = new RimuoviCommand(userState, pokemonName);
@@ -290,6 +301,29 @@ public class pokemonjavabot extends TelegramLongPollingBot {
 
             return sb.toString();
         }
+        public class StopCommand implements BotCommand {
+            private Long chatId;
+            private UserState userState;
+
+            public StopCommand(UserState userState) {
+                this.userState = userState;
+            }
+
+            @Override
+            public String executeCommand() {
+                if (userState != null) {
+                    userState.stopRequestThread(); // Interrompi il thread associato all'utente
+                    return "Hai interrotto la ricerca di Pokémon. Grazie per aver utilizzato il bot!";
+                } else {
+                    chatId = userState.getChatId();
+                    Thread requestThread = userState.getRequestThread();
+                    if (requestThread != null) {
+                        requestThread.interrupt();
+                    }
+                    return "Hai interrotto la ricerca di Pokémon. Grazie per aver utilizzato il bot!";
+                }
+                }
+            }
         public String spawnRandomPokemon(Update update, UserState userState) {
             try {
                 Random random = new Random();

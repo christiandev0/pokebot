@@ -72,7 +72,6 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                             throw new RuntimeException(e);
                         }
                     }
-                    userStates.remove(chatId); // Rimuovi lo stato dell'utente dalla mappa dopo la terminazione
                     response = commandHandler.executeCommand("/stop", update);
                 } else {
                     response = "Nessuna ricerca in corso da interrompere.";
@@ -274,8 +273,8 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                 String pokemonName = command.substring(9);
                 botCommand = new RimuoviCommand(userState, pokemonName);
             } else if (command.equals("/No")) {
-                currentPokemon = userState.getCurrentPokemon();
-                return ""+ currentPokemon+ " è fuggito!";
+                Pokemon nomeP = userState.getCurrentPokemon();
+                return ""+ nomeP.toString() + " è fuggito!";
             } else {
                 return "Comando non valido.";
             }

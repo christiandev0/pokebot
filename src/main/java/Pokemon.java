@@ -9,6 +9,10 @@ public class Pokemon {
     @SerializedName("sprites")
     private Sprites sprites;
 
+    @Override
+    public String toString() {
+        return getName();
+    }
     public String getName() {
         return name;
     }

@@ -63,19 +63,7 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                 response = startCommand.executeCommand();
             } else if (messageText.equals("/stop")) {
                 userState = userStates.get(chatId);
-                if (userState != null) {
-                    if (userState.getRequestThread() != null) {
-                        try {
-                            userState.getRequestThread().interrupt();
-                            userState.getRequestThread().join();
-                        } catch (InterruptedException e) {
-                            throw new RuntimeException(e);
-                        }
-                    }
-                    response = commandHandler.executeCommand("/stop", update);
-                } else {
-                    response = "Nessuna ricerca in corso da interrompere.";
-                }
+                response = commandHandler.executeCommand("/stop", update);
             } else if (messageText.equals("/help")) {
                 response = commandHandler.executeCommand("/help", update);
             } else if (messageText.equals("/info")) {
@@ -274,6 +262,7 @@ public class pokemonjavabot extends TelegramLongPollingBot {
                 botCommand = new RimuoviCommand(userState, pokemonName);
             } else if (command.equals("/No")) {
                 Pokemon nomeP = userState.getCurrentPokemon();
+                userState.setCurrentPokemon(null);
                 return ""+ nomeP.toString() + " è fuggito!";
             } else {
                 return "Comando non valido.";
@@ -288,9 +277,9 @@ public class pokemonjavabot extends TelegramLongPollingBot {
             sb.append("/help - Mostra l'elenco dei comandi disponibili\n");
             sb.append("/info - Mostra informazioni sul bot\n");
             sb.append("/cerca <nome_pokémon> - Cerca informazioni su un Pokémon\n");
-            sb.append("/stop Esci dall'erba alta per non incontrare altri pokemon!");
-            sb.append("/cattura ti permette di catturare il pokémon apparso!");
-            sb.append("/rimuovi <nome_pokemon> consente di liberare un pokémon dalla squadra ");
+            sb.append("/stop Esci dall'erba alta per non incontrare altri pokemon!\n");
+            sb.append("/cattura ti permette di catturare il pokémon apparso!\n");
+            sb.append("/rimuovi <nome_pokemon> consente di liberare un pokémon dalla squadra\n");
             return sb.toString();}
         public String executeInfoCommand(Map<Long, UserState> userStates) {
             StringBuilder sb = new StringBuilder();

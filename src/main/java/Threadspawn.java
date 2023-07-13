@@ -19,12 +19,9 @@ public class Threadspawn implements Runnable {
 
     public Threadspawn() {
     }
-    public void stopThread() {
-        isRunning = false;
-    }
     @Override
     public void run() {
-        while (!Thread.currentThread().isInterrupted()) {
+        while (userState.isRunning()) {
             try {
                 String pokemonInfo = commandHandler.spawnRandomPokemon(update, userState);
                 SendMessage response = new SendMessage();

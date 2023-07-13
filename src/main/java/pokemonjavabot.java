@@ -300,14 +300,11 @@ public class pokemonjavabot extends TelegramLongPollingBot {
             @Override
             public String executeCommand() {
                 if (userState != null) {
-                    userState.stopRequestThread(); // Interrompi il thread associato all'utente
+                    userState.setRunning(false); // Interrompi il thread associato all'utente
                     return "Hai interrotto la ricerca di Pokémon. Grazie per aver utilizzato il bot!";
                 } else {
                     chatId = userState.getChatId();
-                    Thread requestThread = userState.getRequestThread();
-                    if (requestThread != null) {
-                        requestThread.interrupt();
-                    }
+                    userState.setRunning(false);
                     return "Hai interrotto la ricerca di Pokémon. Grazie per aver utilizzato il bot!";
                 }
                 }
